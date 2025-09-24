@@ -1,0 +1,27 @@
+{
+  "name": "e2ee-chat-js",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Simple web chat with end-to-end encryption (password-derived AES-GCM)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "chat",
+    "e2ee",
+    "aes-gcm",
+    "websocket"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  }
+}
