@@ -19,6 +19,12 @@ function getRoomSet(room) {
   return rooms.get(room);
 }
 
+function broadcastPresence(room) {
+  const set = rooms.get(room);
+  const count = set ? set.size : 0;
+  broadcastToRoom(room, { type: "presence", room, count });
+}
+
 function broadcastToRoom(room, data, options = {}) {
   const { exclude } = options;
   const payload = JSON.stringify(data);
@@ -61,11 +67,13 @@ wss.on("connection", (ws) => {
 
       // Leave previous room if any
       if (ws.room) {
-        const prevSet = rooms.get(ws.room);
+        const prevRoom = ws.room;
+        const prevSet = rooms.get(prevRoom);
         if (prevSet) {
           prevSet.delete(ws);
-          if (prevSet.size === 0) rooms.delete(ws.room);
+          if (prevSet.size === 0) rooms.delete(prevRoom);
         }
+        broadcastPresence(prevRoom);
       }
 
       ws.room = room;
@@ -73,6 +81,7 @@ wss.on("connection", (ws) => {
 
       const set = getRoomSet(room);
       set.add(ws);
+      broadcastPresence(room);
 
       // Ack the join (plaintext meta message)
       ws.send(
@@ -108,17 +117,19 @@ wss.on("connection", (ws) => {
 
     if (type === "leave") {
       if (ws.room) {
-        const set = rooms.get(ws.room);
+        const room = ws.room;
+        const set = rooms.get(room);
         if (set) {
           set.delete(ws);
-          if (set.size === 0) rooms.delete(ws.room);
+          if (set.size === 0) rooms.delete(room);
         }
-        broadcastToRoom(ws.room, {
+        broadcastToRoom(room, {
           type: "system",
           event: "leave",
           name: ws.name || "anon",
           ts: Date.now(),
         }, { exclude: ws });
+        broadcastPresence(room);
         ws.room = null;
       }
       return;
@@ -127,17 +138,19 @@ wss.on("connection", (ws) => {
 
   ws.on("close", () => {
     if (ws.room) {
-      const set = rooms.get(ws.room);
+      const room = ws.room;
+      const set = rooms.get(room);
       if (set) {
         set.delete(ws);
-        if (set.size === 0) rooms.delete(ws.room);
+        if (set.size === 0) rooms.delete(room);
       }
-      broadcastToRoom(ws.room, {
+      broadcastToRoom(room, {
         type: "system",
         event: "disconnect",
         name: ws.name || "anon",
         ts: Date.now(),
       }, { exclude: ws });
+      broadcastPresence(room);
     }
   });
 });

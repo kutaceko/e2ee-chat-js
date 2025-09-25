@@ -8,6 +8,7 @@ const connectBtn = $("#connectBtn");
 const disconnectBtn = $("#disconnectBtn");
 const fingerprintEl = $("#fingerprint");
 const statusTextEl = $("#statusText");
+const onlineCountEl = $("#onlineCount");
 
 const chatSection = $("#chatSection");
 const messagesEl = $("#messages");
@@ -144,7 +145,7 @@ window.addEventListener("DOMContentLoaded", () => {
   if (insecure) {
     addMessage({
       kind: "system",
-      text: "This page is not in a secure context. Open http://localhost:3000 or use HTTPS. crypto.subtle is blocked on non-secure origins.",
+      text: "Secure connection required. Please access via HTTPS or localhost for full functionality.",
       error: true,
     });
   }
@@ -162,13 +163,13 @@ connectBtn.addEventListener("click", async () => {
     }
 
     if (!crypto || !crypto.subtle) {
-      addMessage({ kind: "system", text: "WebCrypto unavailable. Use https or localhost.", error: true });
-      setStatus("WebCrypto unavailable", { err: true });
+      addMessage({ kind: "system", text: "Security features unavailable. Please use HTTPS or localhost.", error: true });
+      setStatus("Security unavailable", { err: true });
       return;
     }
 
-    addMessage({ kind: "system", text: "Deriving key…" });
-    setStatus("Deriving key…");
+    addMessage({ kind: "system", text: "Establishing secure connection…" });
+    setStatus("Connecting…");
     aesKey = await deriveKey(password, room);
     const fp = await keyFingerprint(aesKey);
     fingerprintEl.textContent = fp;
@@ -182,8 +183,8 @@ connectBtn.addEventListener("click", async () => {
     ws.addEventListener("open", () => {
       setConnected(true);
       messagesEl.innerHTML = "";
-      addMessage({ kind: "system", text: `Connected. Room: ${room}` });
-      setStatus(`Connected to ${url}`, { ok: true });
+      addMessage({ kind: "system", text: `Connected to room: ${room}` });
+      setStatus("Connected", { ok: true });
       ws.send(JSON.stringify({ type: "join", room, name }));
     });
 
@@ -200,6 +201,12 @@ connectBtn.addEventListener("click", async () => {
         addMessage({ kind: "system", text: `${who} ${ev}` });
         return;
       }
+      if (data.type === "presence") {
+        if (data.room === currentRoom && onlineCountEl) {
+          onlineCountEl.textContent = String(data.count ?? 0);
+        }
+        return;
+      }
       if (data.type === "chat") {
         const from = data.from || "?";
         const plaintext = await decryptText(data.ciphertext, data.iv);
@@ -214,15 +221,16 @@ connectBtn.addEventListener("click", async () => {
 
     ws.addEventListener("close", () => {
       setConnected(false);
-      addMessage({ kind: "system", text: "Disconnected." });
-      setStatus("Disconnected");
+      addMessage({ kind: "system", text: "Disconnected from room." });
+      setStatus("Ready");
       ws = null; aesKey = null; currentRoom = null; currentName = null;
       fingerprintEl.textContent = "—";
+      if (onlineCountEl) onlineCountEl.textContent = "0";
     });
 
     ws.addEventListener("error", () => {
-      addMessage({ kind: "system", text: "WebSocket error.", error: true });
-      setStatus("WebSocket error", { err: true });
+      addMessage({ kind: "system", text: "Connection error.", error: true });
+      setStatus("Connection error", { err: true });
     });
   } catch (err) {
     addMessage({ kind: "system", text: `Error: ${err?.message || err}`, error: true });

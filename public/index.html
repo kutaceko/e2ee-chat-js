@@ -3,48 +3,49 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>E2EE Chat (Password AES-GCM)</title>
+    <title>SecureChat</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
+    <header class="appbar">
+      <div class="appbar__brand">SecureChat</div>
+      <div class="appbar__presence"><span id="onlineCount">0</span> online</div>
+    </header>
     <div class="container">
-      <h1>End-to-End Encrypted Chat</h1>
-      <p class="subtitle">Group E2EE using a shared password (AES-GCM in your browser). The server only relays ciphertext.</p>
+      <h1 class="sr-only">Secure Chat Application</h1>
+      <p class="subtitle">End-to-end encrypted group messaging with advanced security.</p>
 
       <section class="connect">
         <div class="row">
           <label>Room</label>
-          <input id="room" placeholder="my-room" value="lobby" />
+          <input id="room" placeholder="Enter room name" value="lobby" />
         </div>
         <div class="row">
-          <label>Name</label>
-          <input id="name" placeholder="alice" />
+          <label>Display Name</label>
+          <input id="name" placeholder="Enter your name" />
         </div>
         <div class="row">
-          <label>Password</label>
-          <input id="password" type="password" placeholder="shared secret" />
+          <label>Room Password</label>
+          <input id="password" type="password" placeholder="Enter room password" />
         </div>
         <div class="row">
           <button id="connectBtn">Connect</button>
           <button id="disconnectBtn" disabled>Disconnect</button>
         </div>
         <div class="row small">
-          <span>Key fingerprint:</span>
+          <span>Security Key:</span>
           <code id="fingerprint">—</code>
         </div>
         <div class="row small">
           <span>Status:</span>
-          <span id="statusText">Idle</span>
-        </div>
-        <div class="row small warn">
-          <strong>Note:</strong> This is a demo. For real-world apps, use audited protocols (e.g., MLS/Signal) and strong password hygiene.
+          <span id="statusText">Ready</span>
         </div>
       </section>
 
       <section class="chat" id="chatSection" hidden>
         <ul id="messages" class="messages"></ul>
         <div class="composer">
-          <input id="messageInput" placeholder="Type an encrypted message..." />
+          <input id="messageInput" placeholder="Type your message..." />
           <button id="sendBtn" disabled>Send</button>
         </div>
       </section>
