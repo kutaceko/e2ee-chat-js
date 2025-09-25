@@ -3,13 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SecureChat</title>
+    <title>EZEE</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <header class="appbar">
-      <div class="appbar__brand">SecureChat</div>
-      <div class="appbar__presence"><span id="onlineCount">0</span> online</div>
+      <div class="appbar__brand">EZEE</div>
+      <div class="appbar__room" style="display:none;">
+        <span class="label">Room:</span>
+        <code id="roomDisplay">—</code>
+        <button id="toggleRoomVisibility" class="icon-btn" aria-label="Hide room">👁</button>
+      </div>
+      <div class="appbar__presence" style="display:none;"><span id="onlineCount">0</span> online</div>
     </header>
     <div class="container">
       <h1 class="sr-only">Secure Chat Application</h1>
@@ -44,6 +49,14 @@
 
       <section class="chat" id="chatSection" hidden>
         <ul id="messages" class="messages"></ul>
+        <div class="reply-preview" id="replyPreview" style="display: none;">
+          <div>
+            <div><strong>Replying to:</strong> <span id="replyToName"></span></div>
+            <div id="replyToText"></div>
+          </div>
+          <button class="close-btn" id="closeReply">&times;</button>
+        </div>
+        <div id="typingIndicator" class="typing" style="display:none;">Someone is typing…</div>
         <div class="composer">
           <input id="messageInput" placeholder="Type your message..." />
           <button id="sendBtn" disabled>Send</button>
@@ -52,5 +65,6 @@
     </div>
 
     <script src="/client.js" type="module"></script>
+    <button id="disconnectCorner" class="disconnect-corner" style="display:none;">Disconnect</button>
   </body>
 </html>

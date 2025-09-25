@@ -88,11 +88,10 @@ wss.on("connection", (ws) => {
         JSON.stringify({ type: "joined", room, name, ts: Date.now() })
       );
 
-      // Notify others in room (plaintext meta message)
+      // Notify others in room (no plaintext name)
       broadcastToRoom(room, {
         type: "system",
         event: "join",
-        name,
         ts: Date.now(),
       }, { exclude: ws });
 
@@ -106,12 +105,26 @@ wss.on("connection", (ws) => {
       const envelope = {
         type: "chat",
         room: ws.room,
-        from: ws.name,
         iv: data.iv, // base64
         ciphertext: data.ciphertext, // base64 (AES-GCM ciphertext+tag)
         ts: Date.now(),
       };
+
+      // Do not include plaintext names or reply metadata; clients decrypt these from payload
       broadcastToRoom(ws.room, envelope, { exclude: null });
+      return;
+    }
+
+    // Anonymous typing indicator relay (no plaintext names)
+    if (type === "typing") {
+      if (!ws.room) return;
+      const envelope = {
+        type: "typing",
+        room: ws.room,
+        active: !!data.active,
+        ts: Date.now(),
+      };
+      broadcastToRoom(ws.room, envelope, { exclude: ws });
       return;
     }
 
@@ -126,7 +139,6 @@ wss.on("connection", (ws) => {
         broadcastToRoom(room, {
           type: "system",
           event: "leave",
-          name: ws.name || "anon",
           ts: Date.now(),
         }, { exclude: ws });
         broadcastPresence(room);
@@ -147,7 +159,6 @@ wss.on("connection", (ws) => {
       broadcastToRoom(room, {
         type: "system",
         event: "disconnect",
-        name: ws.name || "anon",
         ts: Date.now(),
       }, { exclude: ws });
       broadcastPresence(room);

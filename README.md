@@ -1,4 +1,4 @@
-# E2EE Chat (JavaScript, AES-GCM)
+# EZEE (JavaScript, AES-GCM)
 
 This is a minimal, educational chat app that demonstrates end-to-end encryption in the browser using a shared password. The server only relays ciphertext and cannot read messages.
 
