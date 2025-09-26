@@ -8,6 +8,11 @@
   </head>
   <body>
     <header class="appbar">
+      <button id="mobileMenuBtn" class="mobile-menu-btn" aria-label="Toggle menu">
+        <span class="hamburger"></span>
+        <span class="hamburger"></span>
+        <span class="hamburger"></span>
+      </button>
       <div class="appbar__brand">EZEE</div>
       <div class="appbar__room" style="display:none;">
         <span class="label">Password:</span>
@@ -15,13 +20,21 @@
         <button id="toggleRoomVisibility" class="icon-btn" aria-label="Toggle password visibility">👁</button>
       </div>
       <div class="appbar__presence" style="display:none;"><span id="onlineCount">0</span> online</div>
+      <button id="mobileMembersBtn" class="mobile-members-btn" aria-label="Toggle members list" style="display:none;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+      </button>
     </header>
     <div class="container">
       <h1 class="sr-only">Secure Chat Application</h1>
-      <p class="subtitle">End-to-end encrypted group messaging with advanced security.</p>
 
       <section class="layout">
-        <aside class="sidebar sidebar-rooms">
+        <div class="mobile-overlay" id="mobileOverlay"></div>
+        <aside class="sidebar sidebar-rooms" id="roomsSidebar">
           <div class="sidebar-header">
             <div class="title">Rooms</div>
             <button class="add-room-btn" id="addRoomBtn" title="Add room">+</button>
@@ -57,9 +70,10 @@
             </div>
           </section>
         </main>
-        <aside class="sidebar sidebar-members">
+        <aside class="sidebar sidebar-members" id="membersSidebar">
           <div class="sidebar-header">
             <div class="title">Members</div>
+            <button class="close-sidebar-btn mobile-only" id="closeMembersBtn">&times;</button>
           </div>
           <ul id="memberList" class="member-list"></ul>
         </aside>
@@ -91,5 +105,8 @@
 
     <script src="/client.js" type="module"></script>
     <button id="disconnectCorner" class="disconnect-corner" style="display:none;">Disconnect</button>
+    
+    <!-- Toast notifications container -->
+    <div id="toastContainer" class="toast-container"></div>
   </body>
 </html>

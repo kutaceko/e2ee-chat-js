@@ -1,5 +1,15 @@
 // Client-side logic for password-based E2EE chat using WebCrypto AES-GCM
 
+// Cross-browser compatibility checks
+if (!window.crypto && window.msCrypto) {
+  window.crypto = window.msCrypto;
+}
+
+// Polyfill for optional chaining fallback
+function safeGet(obj, path, defaultValue = undefined) {
+  return path.split('.').reduce((acc, part) => acc && acc[part], obj) || defaultValue;
+}
+
 const $ = (sel) => document.querySelector(sel);
 const fingerprintEl = $("#fingerprint");
 const statusTextEl = $("#statusText");
@@ -33,6 +43,9 @@ const replyToName = $("#replyToName");
 const replyToText = $("#replyToText");
 const closeReply = $("#closeReply");
 
+// Toast notification container
+const toastContainer = $("#toastContainer");
+
 let ws = null;
 let aesKey = null; // CryptoKey for the active room
 let currentRoom = null; // active room id
@@ -50,6 +63,11 @@ const roomHistory = new Map(); // room -> [{kind, ...}] for re-render
 function addMessage({ kind = "chat", from = "", text = "", error = false, ts = Date.now() }) {
   const li = document.createElement("li");
   li.className = `message ${kind}${error ? " error" : ""}`;
+
+  // Show toast notification for system messages
+  if (kind === "system") {
+    showToast(text, error);
+  }
 
   // Header with sender and time
   const header = document.createElement("div");
@@ -168,6 +186,43 @@ function autoScrollIfNearBottom() {
   if (isNearBottom) {
     container.scrollTop = container.scrollHeight;
   }
+}
+
+function showToast(text, isError = false) {
+  if (!toastContainer) return;
+  
+  // Create toast element
+  const toast = document.createElement('div');
+  toast.className = `toast ${isError ? 'error' : ''}`;
+  
+  // Create content
+  const content = document.createElement('div');
+  content.className = 'toast-content';
+  content.textContent = text;
+  
+  // Create progress bar
+  const progress = document.createElement('div');
+  progress.className = 'toast-progress';
+  progress.style.width = '100%';
+  
+  toast.appendChild(content);
+  toast.appendChild(progress);
+  toastContainer.appendChild(toast);
+  
+  // Start progress bar animation
+  setTimeout(() => {
+    progress.style.width = '0%';
+  }, 50);
+  
+  // Auto-dismiss after 3 seconds
+  setTimeout(() => {
+    toast.classList.add('hiding');
+    setTimeout(() => {
+      if (toast.parentElement) {
+        toast.parentElement.removeChild(toast);
+      }
+    }, 300); // Wait for slide-out animation
+  }, 3000);
 }
 
 function bufToBase64(buf) {
@@ -710,3 +765,221 @@ if (messageInput) {
     handleTypingInput();
   });
 }
+
+// Mobile Navigation Code
+const mobileMenuBtn = $("#mobileMenuBtn");
+const mobileMembersBtn = $("#mobileMembersBtn");
+const roomsSidebar = $("#roomsSidebar");
+const membersSidebar = $("#membersSidebar");
+const mobileOverlay = $("#mobileOverlay");
+const closeMembersBtn = $("#closeMembersBtn");
+
+let touchStartX = null;
+let touchStartY = null;
+let isSwiping = false;
+
+// Toggle rooms sidebar
+if (mobileMenuBtn) {
+  mobileMenuBtn.addEventListener("click", () => {
+    toggleRoomsSidebar();
+  });
+}
+
+// Toggle members sidebar
+if (mobileMembersBtn) {
+  mobileMembersBtn.addEventListener("click", () => {
+    toggleMembersSidebar();
+  });
+}
+
+// Close members sidebar
+if (closeMembersBtn) {
+  closeMembersBtn.addEventListener("click", () => {
+    closeMembersSidebar();
+  });
+}
+
+// Close sidebars when clicking overlay
+if (mobileOverlay) {
+  mobileOverlay.addEventListener("click", () => {
+    closeAllSidebars();
+  });
+}
+
+function toggleRoomsSidebar() {
+  if (!roomsSidebar) return;
+  const isActive = roomsSidebar.classList.contains("active");
+  
+  if (isActive) {
+    closeRoomsSidebar();
+  } else {
+    openRoomsSidebar();
+  }
+}
+
+function openRoomsSidebar() {
+  if (!roomsSidebar) return;
+  roomsSidebar.classList.add("active");
+  if (mobileOverlay) {
+    mobileOverlay.style.display = "block";
+    setTimeout(() => mobileOverlay.classList.add("active"), 10);
+  }
+  document.body.style.overflow = "hidden";
+}
+
+function closeRoomsSidebar() {
+  if (!roomsSidebar) return;
+  roomsSidebar.classList.remove("active");
+  if (mobileOverlay && !(membersSidebar && membersSidebar.classList.contains("active"))) {
+    mobileOverlay.classList.remove("active");
+    setTimeout(() => mobileOverlay.style.display = "none", 300);
+    document.body.style.overflow = "";
+  }
+}
+
+function toggleMembersSidebar() {
+  if (!membersSidebar) return;
+  const isActive = membersSidebar.classList.contains("active");
+  
+  if (isActive) {
+    closeMembersSidebar();
+  } else {
+    openMembersSidebar();
+  }
+}
+
+function openMembersSidebar() {
+  if (!membersSidebar) return;
+  membersSidebar.classList.add("active");
+  if (mobileOverlay) {
+    mobileOverlay.style.display = "block";
+    setTimeout(() => mobileOverlay.classList.add("active"), 10);
+  }
+  document.body.style.overflow = "hidden";
+}
+
+function closeMembersSidebar() {
+  if (!membersSidebar) return;
+  membersSidebar.classList.remove("active");
+  if (mobileOverlay && !(roomsSidebar && roomsSidebar.classList.contains("active"))) {
+    mobileOverlay.classList.remove("active");
+    setTimeout(() => mobileOverlay.style.display = "none", 300);
+    document.body.style.overflow = "";
+  }
+}
+
+function closeAllSidebars() {
+  closeRoomsSidebar();
+  closeMembersSidebar();
+}
+
+// Swipe gesture support for mobile
+document.addEventListener("touchstart", handleTouchStart, { passive: true });
+document.addEventListener("touchmove", handleTouchMove, { passive: true });
+document.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+function handleTouchStart(e) {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+  isSwiping = false;
+}
+
+function handleTouchMove(e) {
+  if (!touchStartX || !touchStartY) return;
+  
+  const touchEndX = e.touches[0].clientX;
+  const touchEndY = e.touches[0].clientY;
+  
+  const diffX = touchEndX - touchStartX;
+  const diffY = touchEndY - touchStartY;
+  
+  // Only consider horizontal swipes
+  if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 30) {
+    isSwiping = true;
+  }
+}
+
+function handleTouchEnd(e) {
+  if (!touchStartX || !isSwiping) {
+    touchStartX = null;
+    touchStartY = null;
+    return;
+  }
+  
+  const touchEndX = e.changedTouches[0].clientX;
+  const diffX = touchEndX - touchStartX;
+  const windowWidth = window.innerWidth;
+  
+  // Swipe right from left edge - open rooms sidebar
+  if (touchStartX < 30 && diffX > 100) {
+    openRoomsSidebar();
+  }
+  // Swipe left from right edge - open members sidebar
+  else if (touchStartX > windowWidth - 30 && diffX < -100) {
+    openMembersSidebar();
+  }
+  // Swipe left on open rooms sidebar - close it
+  else if (roomsSidebar && roomsSidebar.classList.contains("active") && diffX < -100) {
+    closeRoomsSidebar();
+  }
+  // Swipe right on open members sidebar - close it
+  else if (membersSidebar && membersSidebar.classList.contains("active") && diffX > 100) {
+    closeMembersSidebar();
+  }
+  
+  touchStartX = null;
+  touchStartY = null;
+  isSwiping = false;
+}
+
+// Handle room selection on mobile - close sidebar after selection
+function handleMobileRoomSelection() {
+  if (window.innerWidth <= 768) {
+    closeRoomsSidebar();
+  }
+}
+
+// Update existing selectRoom to close sidebar on mobile
+const originalSelectRoom = window.selectRoom || selectRoom;
+if (originalSelectRoom) {
+  window.selectRoom = async function(room) {
+    const result = await originalSelectRoom.call(this, room);
+    handleMobileRoomSelection();
+    return result;
+  };
+}
+
+// Handle keyboard focus management for mobile
+if (messageInput) {
+  messageInput.addEventListener("focus", () => {
+    // On mobile, ensure the composer is visible when keyboard opens
+    if (window.innerWidth <= 768) {
+      setTimeout(() => {
+        messageInput.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 300);
+    }
+  });
+}
+
+// Handle window resize to reset sidebars
+let resizeTimeout;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    // Close sidebars and reset on resize from mobile to desktop
+    if (window.innerWidth > 768) {
+      closeAllSidebars();
+      document.body.style.overflow = "";
+    }
+  }, 250);
+});
+
+// Ensure proper viewport height on mobile (fixes iOS Safari issue)
+function setViewportHeight() {
+  const vh = window.innerHeight * 0.01;
+  document.documentElement.style.setProperty('--vh', `${vh}px`);
+}
+
+setViewportHeight();
+window.addEventListener('resize', setViewportHeight);
+window.addEventListener('orientationchange', setViewportHeight);
