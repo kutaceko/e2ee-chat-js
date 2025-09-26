@@ -96,7 +96,7 @@ function addMessage({ kind = "chat", from = "", text = "", error = false, ts = D
   
   li.appendChild(content);
   messagesEl.appendChild(li);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
+  autoScrollIfNearBottom();
 }
 
 // Render a decrypted chat message with optional reply preview and a Reply button
@@ -154,7 +154,7 @@ function renderChatMessage({ from = "?", text = "", ts = Date.now(), replyTo = n
   
   li.appendChild(content);
   messagesEl.appendChild(li);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
+  autoScrollIfNearBottom();
 }
 
 function bufToBase64(buf) {
@@ -420,6 +420,10 @@ function redrawHistory(room) {
       addMessage({ kind: "system", text: item.text });
     }
   });
+  // Scroll to bottom after loading history
+  if (messagesEl.parentElement) {
+    messagesEl.parentElement.scrollTop = messagesEl.parentElement.scrollHeight;
+  }
 }
 
 function pushHistory(room, item) {
