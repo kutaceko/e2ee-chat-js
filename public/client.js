@@ -157,6 +157,19 @@ function renderChatMessage({ from = "?", text = "", ts = Date.now(), replyTo = n
   autoScrollIfNearBottom();
 }
 
+function autoScrollIfNearBottom() {
+  const container = messagesEl.parentElement;
+  if (!container) return;
+  
+  // Check if user is near bottom (within 100px)
+  const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+  
+  // Only scroll if user is already near the bottom
+  if (isNearBottom) {
+    container.scrollTop = container.scrollHeight;
+  }
+}
+
 function bufToBase64(buf) {
   const bytes = new Uint8Array(buf);
   let binary = "";
