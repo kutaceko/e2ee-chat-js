@@ -5,7 +5,7 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 Repository: e2ee-chat-js
 
 Overview
-- Minimal end-to-end encrypted (password-based) group chat. The server only relays ciphertext; encryption happens in the browser using WebCrypto (AES-GCM) with a key derived via PBKDF2(SHA-256) from the shared room password.
+- End-to-end encrypted (password-based) group chat. The server only relays ciphertext; encryption happens in the browser using WebCrypto (AES-GCM) with a key derived via PBKDF2(SHA-256) from the shared room password.
 - Tech: Node.js (Express + ws), static frontend (HTML/CSS/JS), no build tooling, no test/lint setup.
 
 Commands
@@ -26,29 +26,37 @@ High-level architecture
   - Express serves ./public as static assets.
   - WebSocket server (ws) manages rooms via an in-memory Map<room, Set<ws>>.
   - Message types (JSON):
-    - join: client joins a room with a sanitized room/name; server acknowledges via joined; broadcasts presence and a system event to peers.
-    - chat: server relays an envelope {type, room, from, iv, ciphertext, ts, [replyTo]} to all peers in the room; it does not inspect plaintext.
+    - join: client joins a room with sanitized room/name and a password verifier; server acknowledges via joined; broadcasts presence and a system event (join/leave/disconnect) to peers.
+    - chat: server relays an envelope {type, room, iv, ciphertext, ts} to all peers in the room; it does not inspect plaintext.
+    - typing: anonymous typing on/off indicator relayed to peers.
     - leave: server removes the client from the room and broadcasts a system event and presence update.
-  - Presence: broadcasts {type: "presence", room, count} when membership changes.
+  - Presence: broadcasts {type: "presence", room, count, users} where users is a list of current display names in that room.
   - Heartbeat: periodic ping/pong to clean up dead connections.
-  - No persistence; rooms and membership live in memory.
+  - No persistence; rooms and membership live in memory. A room's password verifier is set by the first joiner and applies to subsequent joins.
 
 - Client (public/index.html, public/client.js, public/styles.css)
-  - UI: simple connect form (room, display name, password), presence count, messages list, composer; shows a short key fingerprint for human verification.
-  - Key derivation: PBKDF2(SHA-256, salt = "e2ee-chat|" + room, 150k iterations) -> AES-GCM(256) CryptoKey.
-  - Encryption: AES-GCM with 12-byte random IV per message; encodes iv and ciphertext in Base64.
-  - Transport: WebSocket to the server host; uses wss when on HTTPS, ws otherwise; relays JSON envelopes.
-  - Decryption: attempts to decrypt received ciphertext; on failure shows a placeholder “[Unable to decrypt]”.
-  - Secure context warning: WebCrypto subtle requires a secure context (HTTPS) except on localhost; the client warns if not secure.
+  - UI: Discord-like native layout
+    - Left rail (icons): home and "+" to add a room
+    - Left sidebar: saved rooms list (room name + display name), remove button per room
+    - Center: chat header, messages list (auto-scrolls to newest), sticky composer, typing indicator
+    - Right sidebar: members list for the current room (from presence users)
+  - Rooms model: multiple rooms can be saved locally; one active room at a time (single WebSocket connection). Switching rooms issues a new join for that room.
+  - Storage: rooms (name + display name) in localStorage; per-room password in sessionStorage only (cleared on browser restart).
+  - Crypto: PBKDF2(SHA-256, salt = "e2ee-chat|" + room, 150k) -> AES-GCM(256) key.
+  - Transport: WebSocket to the same host (wss on HTTPS, ws otherwise). JSON envelopes only.
+  - Decryption: attempts AES-GCM decryption; on failure shows “[Unable to decrypt]”.
+  - Secure context warning: WebCrypto requires HTTPS (or localhost).
 
 Important from README
-- This is an educational demo; it does not implement forward secrecy, deniability, or authenticated key exchange. Do not use as-is for production.
-- Recommended for real deployments: well-reviewed protocols (e.g., MLS or Signal Double Ratchet) with proper authentication.
+- Educational demo; no forward secrecy, deniability, or authenticated key exchange.
+- For real deployments: use well-reviewed protocols (MLS, Signal Double Ratchet) and proper authentication.
 
 Repository structure (essential only)
-- server.js: Express server + WebSocket relay (no plaintext handling).
-- public/index.html, public/client.js, public/styles.css: frontend and crypto logic (PBKDF2 + AES-GCM).
+- server.js: Express server + WebSocket relay (no plaintext content inspection). Presence includes users list for member sidebar.
+- public/index.html: Multi-pane UI (rail, rooms sidebar, chat pane, members sidebar) + modal for adding rooms.
+- public/client.js: UI logic (rooms persistence, join/switch, presence rendering), crypto, and transport.
+- public/styles.css: Layout and component styles (full-height app, sticky composer, scrollable messages).
 
 Operational tips
 - If reverse-proxying behind TLS, the client will automatically use wss based on the page protocol.
-- Presence count is derived from active WebSocket connections in a room; restarting the server clears all rooms.
+- Presence count and member list derive from active connections; restarting the server clears rooms, connections, and resets password verifiers.

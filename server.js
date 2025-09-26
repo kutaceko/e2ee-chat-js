@@ -22,7 +22,8 @@ function getRoomSet(room) {
 function broadcastPresence(room) {
   const set = rooms.get(room);
   const count = set ? set.size : 0;
-  broadcastToRoom(room, { type: "presence", room, count });
+  const users = set ? Array.from(set).map((c) => c.name).filter(Boolean).slice(0, 200) : [];
+  broadcastToRoom(room, { type: "presence", room, count, users });
 }
 
 function broadcastToRoom(room, data, options = {}) {

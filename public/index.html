@@ -10,9 +10,9 @@
     <header class="appbar">
       <div class="appbar__brand">EZEE</div>
       <div class="appbar__room" style="display:none;">
-        <span class="label">Room:</span>
+        <span class="label">Password:</span>
         <code id="roomDisplay">—</code>
-        <button id="toggleRoomVisibility" class="icon-btn" aria-label="Hide room">👁</button>
+        <button id="toggleRoomVisibility" class="icon-btn" aria-label="Toggle password visibility">👁</button>
       </div>
       <div class="appbar__presence" style="display:none;"><span id="onlineCount">0</span> online</div>
     </header>
@@ -20,48 +20,73 @@
       <h1 class="sr-only">Secure Chat Application</h1>
       <p class="subtitle">End-to-end encrypted group messaging with advanced security.</p>
 
-      <section class="connect">
-        <div class="row">
-          <label>Room</label>
-          <input id="room" placeholder="Enter room name" value="lobby" />
-        </div>
-        <div class="row">
-          <label>Display Name</label>
-          <input id="name" placeholder="Enter your name" />
-        </div>
-        <div class="row">
-          <label>Room Password</label>
-          <input id="password" type="password" placeholder="Enter room password" />
-        </div>
-        <div class="row">
-          <button id="connectBtn">Connect</button>
-          <button id="disconnectBtn" disabled>Disconnect</button>
-        </div>
-        <div class="row small">
-          <span>Security Key:</span>
-          <code id="fingerprint">—</code>
-        </div>
-        <div class="row small">
-          <span>Status:</span>
-          <span id="statusText">Ready</span>
-        </div>
+      <section class="layout">
+        <aside class="sidebar sidebar-rooms">
+          <div class="sidebar-header">
+            <div class="title">Rooms</div>
+            <button class="add-room-btn" id="addRoomBtn" title="Add room">+</button>
+          </div>
+          <ul id="roomList" class="room-list"></ul>
+          <div class="sidebar-footer small">
+            <span>Security Key:</span>
+            <code id="fingerprint">—</code>
+          </div>
+          <div class="sidebar-footer small">
+            <span>Status:</span>
+            <span id="statusText">Ready</span>
+          </div>
+        </aside>
+        <main class="mainchat">
+          <section class="chat" id="chatSection" hidden>
+            <div class="messages-container">
+              <ul id="messages" class="messages"></ul>
+            </div>
+            <div class="composer-container">
+              <div class="reply-preview" id="replyPreview" style="display: none;">
+                <div>
+                  <div><strong>Replying to:</strong> <span id="replyToName"></span></div>
+                  <div id="replyToText"></div>
+                </div>
+                <button class="close-btn" id="closeReply">&times;</button>
+              </div>
+              <div id="typingIndicator" class="typing" style="display:none;">Someone is typing…</div>
+              <div class="composer">
+                <input id="messageInput" placeholder="Type your message..." />
+                <button id="sendBtn" disabled>Send</button>
+              </div>
+            </div>
+          </section>
+        </main>
+        <aside class="sidebar sidebar-members">
+          <div class="sidebar-header">
+            <div class="title">Members</div>
+          </div>
+          <ul id="memberList" class="member-list"></ul>
+        </aside>
       </section>
 
-      <section class="chat" id="chatSection" hidden>
-        <ul id="messages" class="messages"></ul>
-        <div class="reply-preview" id="replyPreview" style="display: none;">
-          <div>
-            <div><strong>Replying to:</strong> <span id="replyToName"></span></div>
-            <div id="replyToText"></div>
+      <div id="newRoomModal" class="modal" style="display:none;">
+        <div class="modal-content">
+          <h3>Add new room</h3>
+          <div class="row">
+            <label>Room</label>
+            <input id="newRoomName" placeholder="Enter room name" />
           </div>
-          <button class="close-btn" id="closeReply">&times;</button>
+          <div class="row">
+            <label>Display Name</label>
+            <input id="newRoomDisplayName" placeholder="Enter your name" />
+          </div>
+          <div class="row">
+            <label>Password</label>
+            <input id="newRoomPassword" type="password" placeholder="Enter room password" />
+          </div>
+          <div class="row actions">
+            <button id="createRoomConfirm">Add</button>
+            <button id="createRoomCancel" class="secondary">Cancel</button>
+          </div>
+          <p class="row small warn">Passwords are kept only for this browser session.</p>
         </div>
-        <div id="typingIndicator" class="typing" style="display:none;">Someone is typing…</div>
-        <div class="composer">
-          <input id="messageInput" placeholder="Type your message..." />
-          <button id="sendBtn" disabled>Send</button>
-        </div>
-      </section>
+      </div>
     </div>
 
     <script src="/client.js" type="module"></script>
