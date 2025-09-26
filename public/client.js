@@ -21,7 +21,6 @@ const messagesEl = $("#messages");
 const messageInput = $("#messageInput");
 const sendBtn = $("#sendBtn");
 const disconnectCorner = $("#disconnectCorner");
-const connectSection = document.querySelector(".connect");
 const presenceContainer = document.querySelector(".appbar__presence");
 const roomContainer = document.querySelector(".appbar__room");
 const roomDisplay = $("#roomDisplay");
@@ -39,7 +38,6 @@ let aesKey = null; // CryptoKey for the active room
 let currentRoom = null; // active room id
 let currentName = null; // active display name
 let replyTarget = null;
-let roomHidden = false;
 let passwordHidden = true;
 let typing = false;
 let typingTimeout = null; // inactivity timeout to send typing: false
@@ -434,7 +432,7 @@ async function ensureSocketAndJoin(room, name, password) {
   const sendJoin = async () => {
     const joinVerifier = await computeVerifier(password, room);
     ws.send(JSON.stringify({ type: "join", room, name, verifier: joinVerifier }));
-    if (toggleRoomVisibility) toggleRoomVisibility.textContent = roomHidden ? "🙈" : "👁";
+    if (toggleRoomVisibility) toggleRoomVisibility.textContent = passwordHidden ? "👁" : "🙈";
     if (messageInput) messageInput.focus();
   };
   if (!ws || ws.readyState === WebSocket.CLOSED) {
@@ -541,20 +539,22 @@ function handleWsMessage(event) {
     (async () => {
       const plaintext = await decryptText(data.ciphertext, data.iv);
       if (plaintext == null) {
-        addMessage({ kind: "chat", from: "?", text: "[Unable to decrypt]", error: true });
-      } else {
-        try {
-          const payload = JSON.parse(plaintext);
-          const from = payload.from || "?";
-          const text = payload.text ?? "";
-          const ts = payload.ts || Date.now();
-          const replyTo = payload.replyTo || null;
-          renderChatMessage({ from, text, ts, replyTo });
-          if (currentRoom) pushHistory(currentRoom, { kind: "chat", from, text, ts, replyTo });
-        } catch {
-          renderChatMessage({ from: "?", text: plaintext });
-          if (currentRoom) pushHistory(currentRoom, { kind: "chat", from: "?", text: plaintext, ts: Date.now() });
-        }
+        // Don't show messages that can't be decrypted - likely wrong password
+        console.warn("Message decryption failed - skipping display");
+        return;
+      }
+      try {
+        const payload = JSON.parse(plaintext);
+        const from = payload.from || "?";
+        const text = payload.text ?? "";
+        const ts = payload.ts || Date.now();
+        const replyTo = payload.replyTo || null;
+        renderChatMessage({ from, text, ts, replyTo });
+        if (currentRoom) pushHistory(currentRoom, { kind: "chat", from, text, ts, replyTo });
+      } catch {
+        // If JSON parsing fails, still show the message (backward compatibility)
+        renderChatMessage({ from: "?", text: plaintext });
+        if (currentRoom) pushHistory(currentRoom, { kind: "chat", from: "?", text: plaintext, ts: Date.now() });
       }
     })();
     return;

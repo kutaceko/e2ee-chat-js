@@ -13,6 +13,8 @@ const wss = new WebSocket.Server({ server });
 
 // roomName -> Set<ws>
 const rooms = new Map();
+// roomName -> password verifier (first joiner sets it)
+const roomVerifiers = new Map();
 
 function getRoomSet(room) {
   if (!rooms.has(room)) rooms.set(room, new Set());
@@ -21,8 +23,10 @@ function getRoomSet(room) {
 
 function broadcastPresence(room) {
   const set = rooms.get(room);
-  const count = set ? set.size : 0;
-  const users = set ? Array.from(set).map((c) => c.name).filter(Boolean).slice(0, 200) : [];
+  // Only count verified users (those who have successfully joined)
+  const verifiedUsers = set ? Array.from(set).filter(c => c.verified) : [];
+  const count = verifiedUsers.length;
+  const users = verifiedUsers.map((c) => c.name).filter(Boolean).slice(0, 200);
   broadcastToRoom(room, { type: "presence", room, count, users });
 }
 
@@ -47,6 +51,7 @@ wss.on("connection", (ws) => {
   ws.isAlive = true;
   ws.room = null;
   ws.name = null;
+  ws.verified = false; // Track if user provided correct password
 
   ws.on("pong", () => {
     ws.isAlive = true;
@@ -65,6 +70,24 @@ wss.on("connection", (ws) => {
     if (type === "join") {
       const room = sanitizeString(data.room, 64) || "lobby";
       const name = sanitizeString(data.name, 32) || "anon";
+      const verifier = data.verifier; // Password verifier from client
+
+      // Check password verifier
+      if (roomVerifiers.has(room)) {
+        // Room exists, check if verifier matches
+        if (roomVerifiers.get(room) !== verifier) {
+          // Wrong password - reject join
+          ws.send(JSON.stringify({ 
+            type: "join-rejected", 
+            reason: "bad-password",
+            ts: Date.now() 
+          }));
+          return;
+        }
+      } else {
+        // First user in room, set the verifier
+        roomVerifiers.set(room, verifier);
+      }
 
       // Leave previous room if any
       if (ws.room) {
@@ -72,13 +95,18 @@ wss.on("connection", (ws) => {
         const prevSet = rooms.get(prevRoom);
         if (prevSet) {
           prevSet.delete(ws);
-          if (prevSet.size === 0) rooms.delete(prevRoom);
+          if (prevSet.size === 0) {
+            rooms.delete(prevRoom);
+            // Clean up verifier if room is empty
+            roomVerifiers.delete(prevRoom);
+          }
         }
         broadcastPresence(prevRoom);
       }
 
       ws.room = room;
       ws.name = name;
+      ws.verified = true; // Mark as verified
 
       const set = getRoomSet(room);
       set.add(ws);
@@ -101,7 +129,7 @@ wss.on("connection", (ws) => {
 
     // Encrypted chat payload relay
     if (type === "chat") {
-      if (!ws.room || !ws.name) return;
+      if (!ws.room || !ws.name || !ws.verified) return;
       // Do not inspect payload, just relay within the room
       const envelope = {
         type: "chat",
@@ -118,7 +146,7 @@ wss.on("connection", (ws) => {
 
     // Anonymous typing indicator relay (no plaintext names)
     if (type === "typing") {
-      if (!ws.room) return;
+      if (!ws.room || !ws.verified) return;
       const envelope = {
         type: "typing",
         room: ws.room,
@@ -135,7 +163,11 @@ wss.on("connection", (ws) => {
         const set = rooms.get(room);
         if (set) {
           set.delete(ws);
-          if (set.size === 0) rooms.delete(room);
+          if (set.size === 0) {
+            rooms.delete(room);
+            // Clean up verifier if room is empty
+            roomVerifiers.delete(room);
+          }
         }
         broadcastToRoom(room, {
           type: "system",
@@ -144,6 +176,7 @@ wss.on("connection", (ws) => {
         }, { exclude: ws });
         broadcastPresence(room);
         ws.room = null;
+        ws.verified = false;
       }
       return;
     }
@@ -155,13 +188,20 @@ wss.on("connection", (ws) => {
       const set = rooms.get(room);
       if (set) {
         set.delete(ws);
-        if (set.size === 0) rooms.delete(room);
+        if (set.size === 0) {
+          rooms.delete(room);
+          // Clean up verifier if room is empty
+          roomVerifiers.delete(room);
+        }
       }
-      broadcastToRoom(room, {
-        type: "system",
-        event: "disconnect",
-        ts: Date.now(),
-      }, { exclude: ws });
+      // Only broadcast disconnect if user was verified
+      if (ws.verified) {
+        broadcastToRoom(room, {
+          type: "system",
+          event: "disconnect",
+          ts: Date.now(),
+        }, { exclude: ws });
+      }
       broadcastPresence(room);
     }
   });
